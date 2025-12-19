@@ -147,7 +147,7 @@
 
         .upload-btn {
             background: rgba(10, 10, 10, 0.5);
-            border: 1.5px solid rgba(255, 217, 102, 0.3);
+            border: 0.5px solid rgba(255, 217, 102, 0.3);
             color: #ffd966;
             padding: 14px 28px;
             cursor: pointer;
@@ -216,7 +216,7 @@
             width: 60px;
             height: 60px;
             background: rgba(10, 10, 10, 0.5);
-            border: 1.5px solid rgba(255, 217, 102, 0.3);
+            border: 0.5px solid rgba(255, 217, 102, 0.3);
             border-radius: 50%;
             cursor: pointer;
             display: flex;
@@ -265,7 +265,7 @@
             left: 30px;
             width: 180px;
             height: 135px;
-            border: 1.5px solid rgba(255, 217, 102, 0.3);
+            border: 0.5px solid rgba(255, 217, 102, 0.3);
             box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 217, 102, 0.1);
             border-radius: 12px;
             overflow: hidden;
@@ -331,7 +331,7 @@
 
         .login-container {
             background: rgba(10, 10, 10, 0.7);
-            border: 2px solid rgba(255, 217, 102, 0.4);
+            border: 1px solid rgba(255, 217, 102, 0.4);
             border-radius: 20px;
             padding: 60px 70px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 80px rgba(255, 217, 102, 0.2);
@@ -405,7 +405,7 @@
             width: 100%;
             padding: 18px 24px;
             background: rgba(0, 0, 0, 0.6);
-            border: 1.5px solid rgba(255, 217, 102, 0.3);
+            border: 0.5px solid rgba(255, 217, 102, 0.3);
             border-radius: 12px;
             color: #ffd966;
             font-size: 18px;
@@ -435,7 +435,7 @@
             width: 100%;
             padding: 18px 24px;
             background: rgba(10, 10, 10, 0.6);
-            border: 1.5px solid rgba(255, 217, 102, 0.4);
+            border: 0.5px solid rgba(255, 217, 102, 0.4);
             border-radius: 12px;
             color: #ffd966;
             cursor: pointer;
@@ -602,6 +602,52 @@
             background: rgba(255, 217, 102, 0.3);
             color: #ffffff;
         }
+
+        /* Snowfall Effect */
+        #snowfall-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+            overflow: hidden;
+        }
+
+        .snowflake {
+            position: absolute;
+            top: -10px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1em;
+            font-family: Arial, sans-serif;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+            animation: snowfall linear infinite;
+            user-select: none;
+        }
+
+        @keyframes snowfall {
+            0% {
+                transform: translateY(0) translateX(0) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) translateX(var(--drift)) rotate(360deg);
+                opacity: 0.3;
+            }
+        }
+
+        /* Tạo các snowflake với kích thước và tốc độ khác nhau */
+        .snowflake:nth-child(1n) { --drift: -30px; animation-duration: 8s; font-size: 0.8em; left: 5%; animation-delay: 0s; }
+        .snowflake:nth-child(2n) { --drift: 40px; animation-duration: 12s; font-size: 1.2em; left: 15%; animation-delay: 1s; }
+        .snowflake:nth-child(3n) { --drift: -20px; animation-duration: 10s; font-size: 1em; left: 25%; animation-delay: 2s; }
+        .snowflake:nth-child(4n) { --drift: 50px; animation-duration: 14s; font-size: 0.9em; left: 35%; animation-delay: 0.5s; }
+        .snowflake:nth-child(5n) { --drift: -40px; animation-duration: 9s; font-size: 1.1em; left: 45%; animation-delay: 1.5s; }
+        .snowflake:nth-child(6n) { --drift: 30px; animation-duration: 11s; font-size: 0.7em; left: 55%; animation-delay: 2.5s; }
+        .snowflake:nth-child(7n) { --drift: -35px; animation-duration: 13s; font-size: 1.3em; left: 65%; animation-delay: 0.8s; }
+        .snowflake:nth-child(8n) { --drift: 45px; animation-duration: 10s; font-size: 0.85em; left: 75%; animation-delay: 1.2s; }
+        .snowflake:nth-child(9n) { --drift: -25px; animation-duration: 12s; font-size: 1.05em; left: 85%; animation-delay: 2.2s; }
+        .snowflake:nth-child(10n) { --drift: 35px; animation-duration: 9.5s; font-size: 0.95em; left: 95%; animation-delay: 0.3s; }
     </style>
 
     <script type="importmap">
@@ -616,6 +662,9 @@
     </script>
 </head>
 <body>
+
+    <!-- Snowfall Effect -->
+    <div id="snowfall-container"></div>
 
     <!-- Login Screen -->
     <div id="login-screen">
@@ -749,6 +798,40 @@
 
         // Chạy login screen khi trang load
         initLoginScreen();
+
+        // --- SNOWFALL EFFECT ---
+        function createSnowfall() {
+            const snowfallContainer = document.getElementById('snowfall-container');
+            const snowflakeCount = 50; // Số lượng bông tuyết
+            const snowflakeSymbols = ['❄', '❅', '❆', '✻', '✼', '❉']; // Các ký tự tuyết khác nhau
+
+            for (let i = 0; i < snowflakeCount; i++) {
+                const snowflake = document.createElement('div');
+                snowflake.className = 'snowflake';
+                snowflake.textContent = snowflakeSymbols[Math.floor(Math.random() * snowflakeSymbols.length)];
+
+                // Random vị trí ngang
+                snowflake.style.left = Math.random() * 100 + '%';
+
+                // Random delay để tuyết không rơi cùng lúc
+                snowflake.style.animationDelay = Math.random() * 5 + 's';
+
+                // Random duration để tuyết rơi với tốc độ khác nhau
+                snowflake.style.animationDuration = (8 + Math.random() * 8) + 's';
+
+                // Random kích thước
+                const size = 0.5 + Math.random() * 1;
+                snowflake.style.fontSize = size + 'em';
+
+                // Random độ mờ
+                snowflake.style.opacity = 0.3 + Math.random() * 0.7;
+
+                snowfallContainer.appendChild(snowflake);
+            }
+        }
+
+        // Khởi tạo hiệu ứng tuyết rơi
+        createSnowfall();
 
         // --- CORE CONFIG ---
         const CONFIG = {
