@@ -1,0 +1,4 @@
+# Ignore images folders
+images/
+images-encrypted/
+.DS_Store
