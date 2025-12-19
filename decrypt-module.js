@@ -83,7 +83,7 @@ export class ImageDecryptor {
                 reader.readAsDataURL(imageBlob);
             });
         } catch (error) {
-            console.error(`Không thể load ảnh: ${url}`, error);
+            // Bỏ qua im lặng - không log lỗi 404
             throw error;
         }
     }

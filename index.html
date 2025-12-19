@@ -1114,32 +1114,46 @@
         const musicToggle = document.getElementById('music-toggle');
         let isMusicPlaying = false;
 
-        musicToggle.addEventListener('click', () => {
-            if (isMusicPlaying) {
-                bgMusic.pause();
-                musicToggle.textContent = '🔇';
-                musicToggle.classList.remove('playing');
-            } else {
-                bgMusic.play().catch(err => {
-                    console.log('Autoplay prevented:', err);
-                });
-                musicToggle.textContent = '🔊';
-                musicToggle.classList.add('playing');
-            }
-            isMusicPlaying = !isMusicPlaying;
-        });
-
-        // Tự động phát nhạc sau khi đăng nhập (nếu trình duyệt cho phép)
-        bgMusic.volume = 0.4; // Âm lượng 40%
-        setTimeout(() => {
+        // Hàm phát nhạc
+        function playMusic() {
             bgMusic.play().then(() => {
                 isMusicPlaying = true;
                 musicToggle.textContent = '🔊';
                 musicToggle.classList.add('playing');
             }).catch(() => {
-                console.log('Nhấn nút để phát nhạc');
+                // Không log lỗi nữa
             });
-        }, 1000);
+        }
+
+        // Toggle nhạc khi nhấn nút
+        musicToggle.addEventListener('click', () => {
+            if (isMusicPlaying) {
+                bgMusic.pause();
+                musicToggle.textContent = '🔇';
+                musicToggle.classList.remove('playing');
+                isMusicPlaying = false;
+            } else {
+                playMusic();
+            }
+        });
+
+        // Tự động phát nhạc khi user click vào bất kỳ đâu trên trang
+        bgMusic.volume = 0.4; // Âm lượng 40%
+
+        let musicStarted = false;
+        const startMusic = () => {
+            if (!musicStarted && !isMusicPlaying) {
+                playMusic();
+                musicStarted = true;
+                // Xóa event listener sau khi đã phát
+                document.removeEventListener('click', startMusic);
+                document.removeEventListener('keydown', startMusic);
+            }
+        };
+
+        // Tự động phát khi user tương tác (click hoặc nhấn phím)
+        document.addEventListener('click', startMusic);
+        document.addEventListener('keydown', startMusic);
     </script>
 </body>
 </html>
