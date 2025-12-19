@@ -106,6 +106,41 @@
 
         input[type="file"] { display: none; }
 
+        /* Music Control Button */
+        #music-toggle {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            background: rgba(20, 20, 20, 0.6);
+            border: 1px solid rgba(212, 175, 55, 0.4);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #d4af37;
+            font-size: 20px;
+            transition: all 0.4s;
+            backdrop-filter: blur(5px);
+            z-index: 20;
+            pointer-events: auto;
+        }
+        #music-toggle:hover {
+            background: #d4af37;
+            color: #000;
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
+            transform: scale(1.1);
+        }
+        #music-toggle.playing {
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 10px rgba(212, 175, 55, 0.3); }
+            50% { box-shadow: 0 0 20px rgba(212, 175, 55, 0.6); }
+        }
+
         /* Webcam feedback */
         #webcam-wrapper {
             position: absolute;
@@ -336,6 +371,12 @@
         <canvas id="webcam-preview" style="display:none;"></canvas>
     </div>
 
+    <!-- Background Music -->
+    <audio id="bg-music" loop>
+        <source src="audio.mp3" type="audio/mpeg">
+    </audio>
+    <button id="music-toggle" title="Toggle Music">🔇</button>
+
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -437,17 +478,8 @@
             
             preload: {
                 autoScanLocal: true,
-                // Danh sách file thực tế (chỉ load file tồn tại)
-                encryptedFiles: [
-                    '1.png.enc', '2.png.enc', '3.png.enc', '4.jpeg.enc', '5.png.enc',
-                    '6.png.enc', '7.png.enc', '8.png.enc', '9.png.enc', '10.png.enc',
-                    '11.png.enc', '12.png.enc', '13.png.enc', '14.png.enc', '15.png.enc',
-                    '16.png.enc', '17.png.enc', '18.jpg.enc', '19.png.enc', '20.jpg.enc',
-                    '21.png.enc', '22.png.enc', '23.png.enc', '24.jpeg.enc', '25.png.enc',
-                    '26.png.enc', '27.png.enc', '28.png.enc', '29.png.enc', '30.png.enc',
-                    '31.png.enc', '32.png.enc', '33.png.enc', '34.png.enc', '35.png.enc',
-                    '36.png.enc', '37.png.enc', '38.jpg.enc', '39.png.enc', '40.jpg.enc'
-                ],
+                scanCount: 100, // Số file tối đa để thử (1-100)
+                extensions: ['png', 'jpg', 'jpeg'], // Các định dạng ảnh để thử
                 images: [
                     'https://images.unsplash.com/photo-1543589077-47d81606c1bf?q=80&w=600',
                     'https://images.unsplash.com/photo-1576919228236-a097c32a5cd4?q=80&w=600',
@@ -506,36 +538,48 @@
                 );
             });
 
-            // 2. Load ảnh ĐÃ MÃ HÓA từ thư mục local
+            // 2. Load ảnh ĐÃ MÃ HÓA từ thư mục local (TỰ ĐỘNG QUÉT)
             if (CONFIG.preload.autoScanLocal && imageDecryptor) {
-                console.log('🔓 Đang giải mã và load ảnh...');
+                console.log('🔓 Tự động quét và giải mã ảnh...');
                 let loadedCount = 0;
+                let attemptCount = 0;
+                const maxAttempts = CONFIG.preload.scanCount * CONFIG.preload.extensions.length;
 
-                // Load từ danh sách file thực tế
-                CONFIG.preload.encryptedFiles.forEach(async filename => {
-                    const encPath = `./images-encrypted/${filename}`;
+                // Thử load tất cả các số từ 1 đến scanCount với tất cả các định dạng
+                for (let i = 1; i <= CONFIG.preload.scanCount; i++) {
+                    for (const ext of CONFIG.preload.extensions) {
+                        const encPath = `./images-encrypted/${i}.${ext}.enc`;
+                        attemptCount++;
 
-                    try {
-                        // Giải mã ảnh
-                        const dataUrl = await imageDecryptor.loadEncryptedImage(encPath);
+                        (async () => {
+                            try {
+                                // Giải mã ảnh
+                                const dataUrl = await imageDecryptor.loadEncryptedImage(encPath);
 
-                        // Load vào scene
-                        loader.load(dataUrl,
-                            (t) => {
-                                t.colorSpace = THREE.SRGBColorSpace;
-                                addPhotoToScene(t);
-                                loadedCount++;
-                                console.log(`✅ Đã giải mã: ${encPath} (${loadedCount}/${CONFIG.preload.encryptedFiles.length} ảnh)`);
-                            },
-                            undefined,
-                            (err) => {
-                                console.error(`❌ Lỗi load texture: ${encPath}`, err);
+                                // Load vào scene
+                                loader.load(dataUrl,
+                                    (t) => {
+                                        t.colorSpace = THREE.SRGBColorSpace;
+                                        addPhotoToScene(t);
+                                        loadedCount++;
+                                        console.log(`✅ Đã giải mã: ${encPath} (${loadedCount} ảnh)`);
+                                    },
+                                    undefined,
+                                    (err) => {
+                                        // Bỏ qua lỗi load texture
+                                    }
+                                );
+                            } catch (err) {
+                                // File không tồn tại hoặc lỗi giải mã - bỏ qua im lặng
                             }
-                        );
-                    } catch (err) {
-                        console.error(`❌ Lỗi giải mã: ${encPath}`, err);
+                        })();
                     }
-                });
+                }
+
+                // Thông báo khi hoàn thành quét
+                setTimeout(() => {
+                    console.log(`✅ Hoàn tất quét: ${loadedCount} ảnh được tải thành công`);
+                }, 3000);
             }
         }
 
@@ -1064,6 +1108,38 @@
         }
 
         // init() sẽ được gọi từ initLoginScreen() sau khi đăng nhập thành công
+
+        // --- MUSIC CONTROL ---
+        const bgMusic = document.getElementById('bg-music');
+        const musicToggle = document.getElementById('music-toggle');
+        let isMusicPlaying = false;
+
+        musicToggle.addEventListener('click', () => {
+            if (isMusicPlaying) {
+                bgMusic.pause();
+                musicToggle.textContent = '🔇';
+                musicToggle.classList.remove('playing');
+            } else {
+                bgMusic.play().catch(err => {
+                    console.log('Autoplay prevented:', err);
+                });
+                musicToggle.textContent = '🔊';
+                musicToggle.classList.add('playing');
+            }
+            isMusicPlaying = !isMusicPlaying;
+        });
+
+        // Tự động phát nhạc sau khi đăng nhập (nếu trình duyệt cho phép)
+        bgMusic.volume = 0.4; // Âm lượng 40%
+        setTimeout(() => {
+            bgMusic.play().then(() => {
+                isMusicPlaying = true;
+                musicToggle.textContent = '🔊';
+                musicToggle.classList.add('playing');
+            }).catch(() => {
+                console.log('Nhấn nút để phát nhạc');
+            });
+        }, 1000);
     </script>
 </body>
 </html>
