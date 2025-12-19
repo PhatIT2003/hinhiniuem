@@ -437,13 +437,21 @@
             
             preload: {
                 autoScanLocal: true,
-                scanCount: 200, // Số lượng tối đa
-                // Các định dạng file sẽ tự động quét (Bỏ HEIC)
-                extensions: ['jpg', 'jpeg', 'png', 'webp', 'bmp'],
+                // Danh sách file thực tế (chỉ load file tồn tại)
+                encryptedFiles: [
+                    '1.png.enc', '2.png.enc', '3.png.enc', '4.jpeg.enc', '5.png.enc',
+                    '6.png.enc', '7.png.enc', '8.png.enc', '9.png.enc', '10.png.enc',
+                    '11.png.enc', '12.png.enc', '13.png.enc', '14.png.enc', '15.png.enc',
+                    '16.png.enc', '17.png.enc', '18.jpg.enc', '19.png.enc', '20.jpg.enc',
+                    '21.png.enc', '22.png.enc', '23.png.enc', '24.jpeg.enc', '25.png.enc',
+                    '26.png.enc', '27.png.enc', '28.png.enc', '29.png.enc', '30.png.enc',
+                    '31.png.enc', '32.png.enc', '33.png.enc', '34.png.enc', '35.png.enc',
+                    '36.png.enc', '37.png.enc', '38.jpg.enc', '39.png.enc', '40.jpg.enc'
+                ],
                 images: [
-                    'https://images.unsplash.com/photo-1543589077-47d81606c1bf?q=80&w=600', 
+                    'https://images.unsplash.com/photo-1543589077-47d81606c1bf?q=80&w=600',
                     'https://images.unsplash.com/photo-1576919228236-a097c32a5cd4?q=80&w=600',
-                    'https://images.unsplash.com/photo-1512389142860-9c449e58a543?q=80&w=600', 
+                    'https://images.unsplash.com/photo-1512389142860-9c449e58a543?q=80&w=600',
                     'https://images.unsplash.com/photo-1482638588057-dce9509db949?q=80&w=600'
                 ]
             }
@@ -503,33 +511,31 @@
                 console.log('🔓 Đang giải mã và load ảnh...');
                 let loadedCount = 0;
 
-                for (let i = 1; i <= CONFIG.preload.scanCount; i++) {
-                    // Thử load tất cả các định dạng đã mã hóa
-                    CONFIG.preload.extensions.forEach(async ext => {
-                        const encPath = `./images-encrypted/${i}.${ext}.enc`;
+                // Load từ danh sách file thực tế
+                CONFIG.preload.encryptedFiles.forEach(async filename => {
+                    const encPath = `./images-encrypted/${filename}`;
 
-                        try {
-                            // Giải mã ảnh
-                            const dataUrl = await imageDecryptor.loadEncryptedImage(encPath);
+                    try {
+                        // Giải mã ảnh
+                        const dataUrl = await imageDecryptor.loadEncryptedImage(encPath);
 
-                            // Load vào scene
-                            loader.load(dataUrl,
-                                (t) => {
-                                    t.colorSpace = THREE.SRGBColorSpace;
-                                    addPhotoToScene(t);
-                                    loadedCount++;
-                                    console.log(`✅ Đã giải mã: ${encPath} (${loadedCount} ảnh)`);
-                                },
-                                undefined,
-                                (err) => {
-                                    console.error(`❌ Lỗi load texture: ${encPath}`, err);
-                                }
-                            );
-                        } catch (err) {
-                            // File không tồn tại hoặc lỗi giải mã - bỏ qua
-                        }
-                    });
-                }
+                        // Load vào scene
+                        loader.load(dataUrl,
+                            (t) => {
+                                t.colorSpace = THREE.SRGBColorSpace;
+                                addPhotoToScene(t);
+                                loadedCount++;
+                                console.log(`✅ Đã giải mã: ${encPath} (${loadedCount}/${CONFIG.preload.encryptedFiles.length} ảnh)`);
+                            },
+                            undefined,
+                            (err) => {
+                                console.error(`❌ Lỗi load texture: ${encPath}`, err);
+                            }
+                        );
+                    } catch (err) {
+                        console.error(`❌ Lỗi giải mã: ${encPath}`, err);
+                    }
+                });
             }
         }
 
