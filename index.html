@@ -506,7 +506,7 @@
                 for (let i = 1; i <= CONFIG.preload.scanCount; i++) {
                     // Thử load tất cả các định dạng đã mã hóa
                     CONFIG.preload.extensions.forEach(async ext => {
-                        const encPath = `./images/${i}.${ext}.enc`;
+                        const encPath = `./images-encrypted/${i}.${ext}.enc`;
 
                         try {
                             // Giải mã ảnh
