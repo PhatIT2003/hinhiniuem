@@ -261,7 +261,7 @@
         /* Webcam feedback */
         #webcam-wrapper {
             position: absolute;
-            bottom: 30px;
+            bottom: 120px;
             left: 30px;
             width: 180px;
             height: 135px;
@@ -1094,11 +1094,11 @@
 
             update(dt, mode, focusTargetMesh) {
                 let target = this.posTree;
-                
+
                 if (mode === 'SCATTER') target = this.posScatter;
                 else if (mode === 'FOCUS') {
                     if (this.mesh === focusTargetMesh) {
-                        const desiredWorldPos = new THREE.Vector3(0, 2, 35);
+                        const desiredWorldPos = new THREE.Vector3(0, 0, 35);
                         const invMatrix = new THREE.Matrix4().copy(mainGroup.matrixWorld).invert();
                         target = desiredWorldPos.applyMatrix4(invMatrix);
                     } else {
