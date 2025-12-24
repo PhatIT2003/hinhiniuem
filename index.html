@@ -863,20 +863,22 @@
         };
 
         const STATE = {
-            mode: 'TREE', 
-            focusIndex: -1, 
+            mode: 'TREE',
+            focusIndex: -1,
             focusTarget: null,
             hand: { detected: false, x: 0, y: 0 },
-            rotation: { x: 0, y: 0 } 
+            hands: { left: null, right: null }, // Lưu vị trí 2 tay
+            rotation: { x: 0, y: 0 }
         };
 
         let scene, camera, renderer, composer;
-        let mainGroup; 
+        let mainGroup;
         let clock = new THREE.Clock();
-        let particleSystem = []; 
+        let particleSystem = [];
         let photoMeshGroup = new THREE.Group();
         let handLandmarker, video;
-        let caneTexture; 
+        let caneTexture;
+        let heartLight; // Ánh sáng đặc biệt cho chế độ trái tim
         const debugInfo = document.getElementById('debug-info');
 
         async function init() {
@@ -1002,6 +1004,11 @@
             const fill = new THREE.DirectionalLight(0xffeebb, 0.8);
             fill.position.set(0, 0, 50);
             scene.add(fill);
+
+            // Ánh sáng đặc biệt cho chế độ trái tim
+            heartLight = new THREE.PointLight(0xff1744, 0, 100); // Màu đỏ hồng, ban đầu tắt
+            heartLight.position.set(0, 0, 0);
+            scene.add(heartLight);
         }
 
         function setupPostProcessing() {
@@ -1057,7 +1064,7 @@
 
             calculatePositions() {
                 if (this.type === 'PHOTO') {
-                    this.posTree.set(0, 0, 0); 
+                    this.posTree.set(0, 0, 0);
                     const rScatter = 8 + Math.random()*12;
                     const theta = Math.random() * Math.PI * 2;
                     const phi = Math.acos(2 * Math.random() - 1);
@@ -1066,20 +1073,29 @@
                         rScatter * Math.sin(phi) * Math.sin(theta),
                         rScatter * Math.cos(phi)
                     );
+
+                    // Tính toán vị trí HEART - sử dụng phương trình toán học của hình trái tim
+                    const t = Math.random() * Math.PI * 2;
+                    const scale = 5; // Kích thước trái tim
+                    this.posHeart = new THREE.Vector3(
+                        scale * 16 * Math.pow(Math.sin(t), 3),
+                        scale * (13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)),
+                        (Math.random() - 0.5) * 2
+                    );
                     return;
                 }
 
                 const h = CONFIG.particles.treeHeight;
                 const halfH = h / 2;
-                let t = Math.random(); 
-                t = Math.pow(t, 0.8); 
+                let t = Math.random();
+                t = Math.pow(t, 0.8);
                 const y = (t * h) - halfH;
-                
-                let rMax = CONFIG.particles.treeRadius * (1.0 - t); 
+
+                let rMax = CONFIG.particles.treeRadius * (1.0 - t);
                 if (rMax < 0.5) rMax = 0.5;
 
-                const angle = t * 50 * Math.PI + Math.random() * Math.PI; 
-                const r = rMax * (0.8 + Math.random() * 0.4); 
+                const angle = t * 50 * Math.PI + Math.random() * Math.PI;
+                const r = rMax * (0.8 + Math.random() * 0.4);
                 this.posTree.set(Math.cos(angle) * r, y, Math.sin(angle) * r);
 
                 let rScatter = this.isDust ? (12 + Math.random()*20) : (8 + Math.random()*12);
@@ -1090,12 +1106,22 @@
                     rScatter * Math.sin(phi) * Math.sin(theta),
                     rScatter * Math.cos(phi)
                 );
+
+                // Tính toán vị trí HEART cho các particle thường (ornaments)
+                const heartT = Math.random() * Math.PI * 2;
+                const scale = 3;
+                this.posHeart = new THREE.Vector3(
+                    scale * 16 * Math.pow(Math.sin(heartT), 3),
+                    scale * (13 * Math.cos(heartT) - 5 * Math.cos(2*heartT) - 2 * Math.cos(3*heartT) - Math.cos(4*heartT)),
+                    (Math.random() - 0.5) * 4
+                );
             }
 
             update(dt, mode, focusTargetMesh) {
                 let target = this.posTree;
 
                 if (mode === 'SCATTER') target = this.posScatter;
+                else if (mode === 'HEART') target = this.posHeart; // Chế độ trái tim
                 else if (mode === 'FOCUS') {
                     if (this.mesh === focusTargetMesh) {
                         const desiredWorldPos = new THREE.Vector3(0, 0, 35);
@@ -1109,10 +1135,10 @@
                 const lerpSpeed = (mode === 'FOCUS' && this.mesh === focusTargetMesh) ? 5.0 : 2.0; 
                 this.mesh.position.lerp(target, lerpSpeed * dt);
 
-                if (mode === 'SCATTER') {
+                if (mode === 'SCATTER' || mode === 'HEART') {
                     this.mesh.rotation.x += this.spinSpeed.x * dt;
                     this.mesh.rotation.y += this.spinSpeed.y * dt;
-                    this.mesh.rotation.z += this.spinSpeed.z * dt; 
+                    this.mesh.rotation.z += this.spinSpeed.z * dt;
                 } else if (mode === 'TREE') {
                     if (this.type === 'PHOTO') {
                         this.mesh.lookAt(0, this.mesh.position.y, 0);
@@ -1120,7 +1146,7 @@
                     } else {
                         this.mesh.rotation.x = THREE.MathUtils.lerp(this.mesh.rotation.x, 0, dt);
                         this.mesh.rotation.z = THREE.MathUtils.lerp(this.mesh.rotation.z, 0, dt);
-                        this.mesh.rotation.y += 0.5 * dt; 
+                        this.mesh.rotation.y += 0.5 * dt;
                     }
                 }
                 
@@ -1131,14 +1157,17 @@
                 let s = this.baseScale;
                 if (this.isDust) {
                     s = this.baseScale * (0.8 + 0.4 * Math.sin(clock.elapsedTime * 4 + this.mesh.id));
-                    if (mode === 'TREE') s = 0; 
+                    if (mode === 'TREE') s = 0;
+                    else if (mode === 'HEART') s = this.baseScale * 1.5; // Dust lớn hơn trong chế độ HEART
                 } else if (mode === 'SCATTER' && this.type === 'PHOTO') {
-                    s = this.baseScale * 2.5; 
+                    s = this.baseScale * 2.5;
+                } else if (mode === 'HEART') {
+                    s = this.baseScale * 1.8; // Particle lớn hơn trong chế độ HEART
                 } else if (mode === 'FOCUS') {
-                    if (this.mesh === focusTargetMesh) s = 4.5; 
-                    else s = this.baseScale * 0.8; 
+                    if (this.mesh === focusTargetMesh) s = 4.5;
+                    else s = this.baseScale * 0.8;
                 }
-                
+
                 this.mesh.scale.lerp(new THREE.Vector3(s,s,s), 4*dt);
             }
         }
@@ -1353,7 +1382,7 @@
                     delegate: "GPU"
                 },
                 runningMode: "VIDEO",
-                numHands: 1
+                numHands: 2 // Nhận diện 2 tay để phát hiện hình trái tim
             });
             
             if (navigator.mediaDevices?.getUserMedia) {
@@ -1383,16 +1412,51 @@
         }
 
         function processGestures(result) {
+            // Kiểm tra nếu phát hiện 2 tay - có thể là hình trái tim
+            if (result.landmarks && result.landmarks.length === 2 && result.handedness) {
+                const hand1 = result.landmarks[0];
+                const hand2 = result.landmarks[1];
+                const handedness1 = result.handedness[0][0].categoryName;
+                const handedness2 = result.handedness[1][0].categoryName;
+
+                // Lấy vị trí ngón cái và ngón trỏ của mỗi tay
+                const thumb1 = hand1[4];
+                const index1 = hand1[8];
+                const thumb2 = hand2[4];
+                const index2 = hand2[8];
+
+                // Tính khoảng cách giữa 2 ngón cái và 2 ngón trỏ
+                const thumbDist = Math.hypot(thumb1.x - thumb2.x, thumb1.y - thumb2.y);
+                const indexDist = Math.hypot(index1.x - index2.x, index1.y - index2.y);
+
+                // Kiểm tra vị trí tương đối (2 tay gần nhau, ngón cái gần nhau, ngón trỏ xa nhau hơn)
+                const centerX = (thumb1.x + thumb2.x) / 2;
+                const centerY = (thumb1.y + thumb2.y) / 2;
+
+                debugInfo.innerText = `2 tay | Thumb: ${thumbDist.toFixed(2)} | Index: ${indexDist.toFixed(2)} | Mode: ${STATE.mode}`;
+
+                // Phát hiện hình trái tim: 2 ngón cái gần nhau, tạo đỉnh trái tim
+                if (thumbDist < 0.15 && indexDist > 0.1 && indexDist < 0.4) {
+                    STATE.mode = 'HEART';
+                    STATE.focusTarget = null;
+                    STATE.hand.detected = true;
+                    STATE.hand.x = (centerX - 0.5) * 2;
+                    STATE.hand.y = (centerY - 0.5) * 2;
+                    return;
+                }
+            }
+
+            // Xử lý 1 tay (logic gốc)
             if (result.landmarks && result.landmarks.length > 0) {
                 STATE.hand.detected = true;
                 const lm = result.landmarks[0];
-                STATE.hand.x = (lm[9].x - 0.5) * 2; 
+                STATE.hand.x = (lm[9].x - 0.5) * 2;
                 STATE.hand.y = (lm[9].y - 0.5) * 2;
 
-                const thumb = lm[4]; 
-                const index = lm[8]; 
+                const thumb = lm[4];
+                const index = lm[8];
                 const wrist = lm[0];
-                const middleMCP = lm[9]; 
+                const middleMCP = lm[9];
 
                 // Tính toán tỷ lệ bàn tay
                 const handSize = Math.hypot(middleMCP.x - wrist.x, middleMCP.y - wrist.y);
@@ -1459,8 +1523,8 @@
             const dt = clock.getDelta();
 
             // Xử lý xoay theo tay
-            if (STATE.mode === 'SCATTER' && STATE.hand.detected) {
-                const targetRotY = STATE.hand.x * Math.PI * 0.9; 
+            if ((STATE.mode === 'SCATTER' || STATE.mode === 'HEART') && STATE.hand.detected) {
+                const targetRotY = STATE.hand.x * Math.PI * 0.9;
                 const targetRotX = STATE.hand.y * Math.PI * 0.25;
                 STATE.rotation.y += (targetRotY - STATE.rotation.y) * 3.0 * dt;
                 STATE.rotation.x += (targetRotX - STATE.rotation.x) * 3.0 * dt;
@@ -1468,13 +1532,33 @@
                 if(STATE.mode === 'TREE') {
                     STATE.rotation.y += 0.3 * dt;
                     STATE.rotation.x += (0 - STATE.rotation.x) * 2.0 * dt;
+                } else if (STATE.mode === 'HEART') {
+                    STATE.rotation.y += 0.2 * dt; // Xoay chậm cho chế độ trái tim
                 } else {
-                      STATE.rotation.y += 0.1 * dt; 
+                    STATE.rotation.y += 0.1 * dt;
                 }
             }
 
             mainGroup.rotation.y = STATE.rotation.y;
             mainGroup.rotation.x = STATE.rotation.x;
+
+            // Thay đổi màu sắc scene khi ở chế độ HEART
+            if (STATE.mode === 'HEART') {
+                // Chuyển background sang màu đỏ/hồng nhẹ
+                scene.background.lerp(new THREE.Color(0x1a0000), 2 * dt);
+                scene.fog.color.lerp(new THREE.Color(0x1a0000), 2 * dt);
+
+                // Bật ánh sáng trái tim với hiệu ứng lấp lánh
+                const targetIntensity = 15 + 5 * Math.sin(clock.elapsedTime * 2);
+                heartLight.intensity = THREE.MathUtils.lerp(heartLight.intensity, targetIntensity, 3 * dt);
+            } else {
+                // Trở lại màu đen
+                scene.background.lerp(new THREE.Color(CONFIG.colors.bg), 2 * dt);
+                scene.fog.color.lerp(new THREE.Color(CONFIG.colors.bg), 2 * dt);
+
+                // Tắt ánh sáng trái tim
+                heartLight.intensity = THREE.MathUtils.lerp(heartLight.intensity, 0, 3 * dt);
+            }
 
             particleSystem.forEach(p => p.update(dt, STATE.mode, STATE.focusTarget));
             composer.render();
