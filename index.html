@@ -607,7 +607,7 @@
         /* Heart Message */
         #heart-message {
             position: fixed;
-            top: 50%;
+            top: 60%;
             left: 50%;
             transform: translate(-50%, -50%);
             font-size: 48px;
@@ -654,10 +654,11 @@
 
         .firework {
             position: absolute;
-            width: 4px;
-            height: 4px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
-            animation: fireworkExplode 1.5s ease-out forwards;
+            animation: fireworkExplode 2s ease-out forwards;
+            box-shadow: 0 0 10px currentColor;
         }
 
         @keyframes fireworkExplode {
@@ -910,17 +911,19 @@
         // --- FIREWORKS EFFECT ---
         function createFirework(x, y) {
             const colors = ['#ff69b4', '#ff1493', '#ff6eb4', '#ffc0cb', '#ff85c1'];
-            const particleCount = 30;
+            const particleCount = 50; // Tăng số lượng hạt
 
             for (let i = 0; i < particleCount; i++) {
                 const particle = document.createElement('div');
                 particle.className = 'firework';
-                particle.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                particle.style.backgroundColor = color;
+                particle.style.color = color;
                 particle.style.left = x + 'px';
                 particle.style.top = y + 'px';
 
                 const angle = (Math.PI * 2 * i) / particleCount;
-                const velocity = 50 + Math.random() * 100;
+                const velocity = 100 + Math.random() * 150; // Tăng vận tốc bay xa hơn
                 const tx = Math.cos(angle) * velocity;
                 const ty = Math.sin(angle) * velocity;
 
@@ -929,7 +932,7 @@
 
                 fireworksContainer.appendChild(particle);
 
-                setTimeout(() => particle.remove(), 1500);
+                setTimeout(() => particle.remove(), 2000); // Tồn tại lâu hơn
             }
         }
 
@@ -940,7 +943,7 @@
                 const x = Math.random() * window.innerWidth;
                 const y = Math.random() * window.innerHeight * 0.7;
                 createFirework(x, y);
-            }, 500);
+            }, 400); // Bắn nhanh hơn
         }
 
         function stopFireworks() {
