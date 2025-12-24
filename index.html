@@ -305,6 +305,7 @@
             backdrop-filter: blur(5px);
             -webkit-backdrop-filter: blur(5px);
             font-weight: 500;
+            display: none; /* Ẩn debug info */
         }
 
         /* Login Screen */
@@ -603,6 +604,73 @@
             color: #ffffff;
         }
 
+        /* Heart Message */
+        #heart-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            font-weight: 700;
+            color: #ff69b4;
+            text-align: center;
+            pointer-events: none;
+            z-index: 15;
+            opacity: 0;
+            text-shadow:
+                0 0 20px rgba(255, 105, 180, 0.8),
+                0 0 40px rgba(255, 105, 180, 0.6),
+                0 0 60px rgba(255, 105, 180, 0.4);
+            font-family: 'Cinzel', 'Playfair Display', Georgia, serif;
+            letter-spacing: 2px;
+            transition: opacity 0.8s ease-in-out;
+            animation: heartPulse 2s ease-in-out infinite;
+        }
+
+        #heart-message.show {
+            opacity: 1;
+        }
+
+        @keyframes heartPulse {
+            0%, 100% {
+                transform: translate(-50%, -50%) scale(1);
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1.05);
+            }
+        }
+
+        /* Fireworks Container */
+        #fireworks-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 12;
+            overflow: hidden;
+        }
+
+        .firework {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            animation: fireworkExplode 1.5s ease-out forwards;
+        }
+
+        @keyframes fireworkExplode {
+            0% {
+                opacity: 1;
+                transform: translate(0, 0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(var(--tx), var(--ty)) scale(0);
+            }
+        }
+
         /* Snowfall Effect */
         #snowfall-container {
             position: fixed;
@@ -665,6 +733,12 @@
 
     <!-- Snowfall Effect -->
     <div id="snowfall-container"></div>
+
+    <!-- Fireworks Container -->
+    <div id="fireworks-container"></div>
+
+    <!-- Heart Message -->
+    <div id="heart-message">Chúc bé iu giáng sinh vui vẻ ❤️</div>
 
     <!-- Login Screen -->
     <div id="login-screen">
@@ -833,6 +907,51 @@
         // Khởi tạo hiệu ứng tuyết rơi
         createSnowfall();
 
+        // --- FIREWORKS EFFECT ---
+        function createFirework(x, y) {
+            const colors = ['#ff69b4', '#ff1493', '#ff6eb4', '#ffc0cb', '#ff85c1'];
+            const particleCount = 30;
+
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'firework';
+                particle.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                particle.style.left = x + 'px';
+                particle.style.top = y + 'px';
+
+                const angle = (Math.PI * 2 * i) / particleCount;
+                const velocity = 50 + Math.random() * 100;
+                const tx = Math.cos(angle) * velocity;
+                const ty = Math.sin(angle) * velocity;
+
+                particle.style.setProperty('--tx', tx + 'px');
+                particle.style.setProperty('--ty', ty + 'px');
+
+                fireworksContainer.appendChild(particle);
+
+                setTimeout(() => particle.remove(), 1500);
+            }
+        }
+
+        function startFireworks() {
+            if (fireworkInterval) return;
+
+            fireworkInterval = setInterval(() => {
+                const x = Math.random() * window.innerWidth;
+                const y = Math.random() * window.innerHeight * 0.7;
+                createFirework(x, y);
+            }, 500);
+        }
+
+        function stopFireworks() {
+            if (fireworkInterval) {
+                clearInterval(fireworkInterval);
+                fireworkInterval = null;
+            }
+            // Clear existing fireworks
+            fireworksContainer.innerHTML = '';
+        }
+
         // --- CORE CONFIG ---
         const CONFIG = {
             colors: {
@@ -880,6 +999,9 @@
         let caneTexture;
         let heartLight; // Ánh sáng đặc biệt cho chế độ trái tim
         const debugInfo = document.getElementById('debug-info');
+        const heartMessage = document.getElementById('heart-message');
+        const fireworksContainer = document.getElementById('fireworks-container');
+        let fireworkInterval = null;
 
         async function init() {
             initThree();
@@ -1537,6 +1659,12 @@
                 // Bật ánh sáng trái tim với hiệu ứng lấp lánh
                 const targetIntensity = 15 + 5 * Math.sin(clock.elapsedTime * 2);
                 heartLight.intensity = THREE.MathUtils.lerp(heartLight.intensity, targetIntensity, 3 * dt);
+
+                // Hiển thị message và pháo hoa
+                if (!heartMessage.classList.contains('show')) {
+                    heartMessage.classList.add('show');
+                    startFireworks();
+                }
             } else {
                 // Trở lại màu đen
                 scene.background.lerp(new THREE.Color(CONFIG.colors.bg), 2 * dt);
@@ -1544,6 +1672,12 @@
 
                 // Tắt ánh sáng trái tim
                 heartLight.intensity = THREE.MathUtils.lerp(heartLight.intensity, 0, 3 * dt);
+
+                // Ẩn message và tắt pháo hoa
+                if (heartMessage.classList.contains('show')) {
+                    heartMessage.classList.remove('show');
+                    stopFireworks();
+                }
             }
 
             particleSystem.forEach(p => p.update(dt, STATE.mode, STATE.focusTarget));
