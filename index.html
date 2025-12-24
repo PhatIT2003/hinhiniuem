@@ -1382,7 +1382,7 @@
                     delegate: "GPU"
                 },
                 runningMode: "VIDEO",
-                numHands: 2 // Nhận diện 2 tay để phát hiện hình trái tim
+                numHands: 1 // Chỉ cần 1 tay để bắn tim
             });
             
             if (navigator.mediaDevices?.getUserMedia) {
@@ -1412,49 +1412,17 @@
         }
 
         function processGestures(result) {
-            // Kiểm tra nếu phát hiện 2 tay - có thể là hình trái tim
-            if (result.landmarks && result.landmarks.length === 2 && result.handedness) {
-                const hand1 = result.landmarks[0];
-                const hand2 = result.landmarks[1];
-                const handedness1 = result.handedness[0][0].categoryName;
-                const handedness2 = result.handedness[1][0].categoryName;
-
-                // Lấy vị trí ngón cái và ngón trỏ của mỗi tay
-                const thumb1 = hand1[4];
-                const index1 = hand1[8];
-                const thumb2 = hand2[4];
-                const index2 = hand2[8];
-
-                // Tính khoảng cách giữa 2 ngón cái và 2 ngón trỏ
-                const thumbDist = Math.hypot(thumb1.x - thumb2.x, thumb1.y - thumb2.y);
-                const indexDist = Math.hypot(index1.x - index2.x, index1.y - index2.y);
-
-                // Kiểm tra vị trí tương đối (2 tay gần nhau, ngón cái gần nhau, ngón trỏ xa nhau hơn)
-                const centerX = (thumb1.x + thumb2.x) / 2;
-                const centerY = (thumb1.y + thumb2.y) / 2;
-
-                debugInfo.innerText = `2 tay | Thumb: ${thumbDist.toFixed(2)} | Index: ${indexDist.toFixed(2)} | Mode: ${STATE.mode}`;
-
-                // Phát hiện hình trái tim: 2 ngón cái gần nhau, tạo đỉnh trái tim
-                if (thumbDist < 0.15 && indexDist > 0.1 && indexDist < 0.4) {
-                    STATE.mode = 'HEART';
-                    STATE.focusTarget = null;
-                    STATE.hand.detected = true;
-                    STATE.hand.x = (centerX - 0.5) * 2;
-                    STATE.hand.y = (centerY - 0.5) * 2;
-                    return;
-                }
-            }
-
-            // Xử lý 1 tay (logic gốc)
             if (result.landmarks && result.landmarks.length > 0) {
                 STATE.hand.detected = true;
                 const lm = result.landmarks[0];
                 STATE.hand.x = (lm[9].x - 0.5) * 2;
                 STATE.hand.y = (lm[9].y - 0.5) * 2;
 
-                const thumb = lm[4];
-                const index = lm[8];
+                const thumb = lm[4];      // Ngón cái
+                const index = lm[8];      // Ngón trỏ
+                const middle = lm[12];    // Ngón giữa
+                const ring = lm[16];      // Ngón áp út
+                const pinky = lm[20];     // Ngón út
                 const wrist = lm[0];
                 const middleMCP = lm[9];
 
@@ -1462,20 +1430,38 @@
                 const handSize = Math.hypot(middleMCP.x - wrist.x, middleMCP.y - wrist.y);
                 if (handSize < 0.02) return;
 
+                // Tính khoảng cách các ngón với cổ tay
+                const thumbDist = Math.hypot(thumb.x - wrist.x, thumb.y - wrist.y);
+                const indexDist = Math.hypot(index.x - wrist.x, index.y - wrist.y);
+                const middleDist = Math.hypot(middle.x - wrist.x, middle.y - wrist.y);
+                const ringDist = Math.hypot(ring.x - wrist.x, ring.y - wrist.y);
+                const pinkyDist = Math.hypot(pinky.x - wrist.x, pinky.y - wrist.y);
+
+                // Khoảng cách giữa ngón cái và ngón giữa (cho cử chỉ bắn tim)
+                const thumbMiddleDist = Math.hypot(thumb.x - middle.x, thumb.y - middle.y);
+
                 const tips = [lm[8], lm[12], lm[16], lm[20]];
                 let avgTipDist = 0;
                 tips.forEach(t => avgTipDist += Math.hypot(t.x - wrist.x, t.y - wrist.y));
                 avgTipDist /= 4;
 
                 const pinchDist = Math.hypot(thumb.x - index.x, thumb.y - index.y);
-
                 const extensionRatio = avgTipDist / handSize;
                 const pinchRatio = pinchDist / handSize;
 
-                debugInfo.innerText = `Size: ${handSize.toFixed(2)} | Ext: ${extensionRatio.toFixed(2)} | Pinch: ${pinchRatio.toFixed(2)} | Mode: ${STATE.mode}`;
+                // 🫰 CỬ CHỈ BẮN TIM: Ngón cái + Ngón giữa chạm nhau, ngón trỏ và út duỗi thẳng
+                const isThumbMiddleSnap = thumbMiddleDist < 0.08; // Ngón cái và giữa chạm nhau
+                const isIndexExtended = indexDist > middleDist * 1.2; // Ngón trỏ duỗi ra
+                const isPinkyExtended = pinkyDist > ringDist * 1.1; // Ngón út duỗi ra (có thể)
+
+                debugInfo.innerText = `TM: ${thumbMiddleDist.toFixed(2)} | Ext: ${extensionRatio.toFixed(2)} | Pinch: ${pinchRatio.toFixed(2)} | Mode: ${STATE.mode}`;
 
                 // Logic chuyển đổi trạng thái
-                if (extensionRatio < 1.5) {
+                if (isThumbMiddleSnap && isIndexExtended) {
+                    // 🫰 Bắn tim -> Hiển thị hình trái tim
+                    STATE.mode = 'HEART';
+                    STATE.focusTarget = null;
+                } else if (extensionRatio < 1.5) {
                     // Nắm tay -> Cây thông
                     STATE.mode = 'TREE';
                     STATE.focusTarget = null;
